@@ -43,7 +43,6 @@ HA_DISCOVERY="$(bashio::config 'homeassistant.enabled')"
 [[ "$EXT_PAN_ID" =~ ^[0-9A-Fa-f]{16}$ ]] || bashio::exit.nok 'advanced.ext_pan_id must be 16 hexadecimal characters'
 [[ "$NETWORK_KEY" =~ ^[0-9A-Fa-f]{32}$ ]] || bashio::exit.nok 'advanced.network_key must be 32 hexadecimal characters'
 [[ "$PERMIT_JOIN" == 'false' ]] || bashio::exit.nok 'permit_join must be false before commissioning'
-[[ "$HA_DISCOVERY" == 'false' ]] || bashio::exit.nok 'homeassistant.enabled must be false before commissioning'
 
 write_byte_array() {
     local hex="$1"
