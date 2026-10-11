@@ -30,9 +30,6 @@ export ZIGBEE2MQTT_DATA="$DATA_PATH"
 export NODE_PATH=/app/node_modules
 
 CONFIG_PATH="${DATA_PATH}/configuration.yaml"
-if [[ -e "$CONFIG_PATH" ]]; then
-    bashio::exit.nok "Refusing to overwrite existing MR4U configuration"
-fi
 
 CHANNEL="$(bashio::config 'advanced.channel')"
 PAN_ID="$(bashio::config 'advanced.pan_id')"
@@ -58,6 +55,33 @@ write_byte_array() {
 }
 
 umask 077
+
+# A pre-existing configuration is the authoritative record of the commissioned
+# Zigbee network. Never regenerate it: doing so could replace its PAN, extended
+# PAN ID or Network Key. The only mutable startup policy is discovery; it is
+# rendered by this wrapper in a stable two-line block and changed atomically.
+if [[ -e "$CONFIG_PATH" ]]; then
+    [[ -f "$CONFIG_PATH" && ! -L "$CONFIG_PATH" ]] || bashio::exit.nok 'Existing MR4U configuration is not a regular file'
+    grep -q '^advanced:$' "$CONFIG_PATH" || bashio::exit.nok 'Existing MR4U configuration lacks advanced network settings'
+    grep -q '^  pan_id:' "$CONFIG_PATH" || bashio::exit.nok 'Existing MR4U configuration lacks PAN ID'
+    grep -q '^  ext_pan_id:' "$CONFIG_PATH" || bashio::exit.nok 'Existing MR4U configuration lacks Extended PAN ID'
+    grep -q '^  network_key:' "$CONFIG_PATH" || bashio::exit.nok 'Existing MR4U configuration lacks Network Key'
+    grep -q '^homeassistant:$' "$CONFIG_PATH" || bashio::exit.nok 'Existing MR4U configuration lacks Home Assistant block'
+    grep -q '^  enabled: \(true\|false\)$' "$CONFIG_PATH" || bashio::exit.nok 'Existing Home Assistant setting is invalid'
+    grep -q '^permit_join: false$' "$CONFIG_PATH" || bashio::exit.nok 'Existing configuration does not keep permit_join closed'
+    CONFIG_TMP="$(mktemp "${DATA_PATH}/.configuration.yaml.XXXXXX")" || bashio::exit.nok 'Could not allocate configuration update'
+    awk -v enabled="$HA_DISCOVERY" '
+        $0 == "homeassistant:" {
+            print
+            if (getline != 1 || $0 !~ /^  enabled: (true|false)$/) exit 42
+            print "  enabled: " enabled
+            next
+        }
+        { print }
+    ' "$CONFIG_PATH" > "$CONFIG_TMP" || { rm -f "$CONFIG_TMP"; bashio::exit.nok 'Could not update Home Assistant discovery'; }
+    chmod 600 "$CONFIG_TMP"
+    mv "$CONFIG_TMP" "$CONFIG_PATH" || bashio::exit.nok 'Could not finalize Home Assistant discovery update'
+else
 CONFIG_TMP="$(mktemp "${DATA_PATH}/.configuration.yaml.XXXXXX")" || bashio::exit.nok 'Could not allocate configuration file'
 {
     cat <<EOF
@@ -91,6 +115,7 @@ EOF
 }
 chmod 600 "$CONFIG_TMP"
 mv "$CONFIG_TMP" "$CONFIG_PATH" || bashio::exit.nok 'Could not finalize MR4U configuration'
+fi
 
 if bashio::config.has_value 'watchdog'; then
     export Z2M_WATCHDOG="$(bashio::config 'watchdog')"
