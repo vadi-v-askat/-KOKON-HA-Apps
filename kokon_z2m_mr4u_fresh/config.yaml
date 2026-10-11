@@ -1,5 +1,5 @@
 name: KOKON Zigbee2MQTT MR4U Fresh
-version: 2.14.2-4
+version: 2.14.2-5
 slug: kokon_z2m_mr4u_fresh
 description: Independent stopped Zigbee2MQTT wrapper for the SMLIGHT SLZB-MR4U.
 url: https://github.com/zigbee2mqtt/hassio-zigbee2mqtt
