@@ -68,13 +68,17 @@ if [[ -e "$CONFIG_PATH" ]]; then
     grep -q '^  network_key:' "$CONFIG_PATH" || bashio::exit.nok 'Existing MR4U configuration lacks Network Key'
     grep -q '^homeassistant:$' "$CONFIG_PATH" || bashio::exit.nok 'Existing MR4U configuration lacks Home Assistant block'
     grep -q '^  enabled: \(true\|false\)$' "$CONFIG_PATH" || bashio::exit.nok 'Existing Home Assistant setting is invalid'
-    grep -q '^permit_join: false$' "$CONFIG_PATH" || bashio::exit.nok 'Existing configuration does not keep permit_join closed'
+    grep -q '^permit_join: \(true\|false\)$' "$CONFIG_PATH" || bashio::exit.nok 'Existing permit_join setting is invalid'
     CONFIG_TMP="$(mktemp "${DATA_PATH}/.configuration.yaml.XXXXXX")" || bashio::exit.nok 'Could not allocate configuration update'
     awk -v enabled="$HA_DISCOVERY" '
         $0 == "homeassistant:" {
             print
             if (getline != 1 || $0 !~ /^  enabled: (true|false)$/) exit 42
             print "  enabled: " enabled
+            next
+        }
+        $0 ~ /^permit_join: (true|false)$/ {
+            print "permit_join: false"
             next
         }
         { print }
