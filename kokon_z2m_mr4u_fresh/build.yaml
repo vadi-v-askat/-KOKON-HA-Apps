@@ -1,0 +1,2 @@
+build_from:
+  amd64: ghcr.io/zigbee2mqtt/zigbee2mqtt-amd64:2.14.2-1
